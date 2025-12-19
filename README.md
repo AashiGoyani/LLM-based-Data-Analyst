@@ -1,4 +1,4 @@
-# LLM-Powered Data Analyst
+# LLM-based Data Analyst
 
 A natural language to SQL query system powered by locally-hosted LLM (Ollama + CodeLlama-7B) for analyzing NYC Taxi trip data. Ask questions in plain English and get SQL queries, data tables, and interactive visualizations automatically.
 
