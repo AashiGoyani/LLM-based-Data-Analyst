@@ -259,17 +259,3 @@ def get_llm_provider(provider_type: Optional[str] = None) -> LLMProvider:
     except:
         pass
 
-    # Nothing available
-    raise Exception(
-        "No LLM provider available.\n\n"
-        "Option 1 (Recommended): Use Groq API (free)\n"
-        "  1. Get API key from https://console.groq.com\n"
-        "  2. Add to .env: GROQ_API_KEY=gsk_...\n\n"
-        "Option 2: Use local Ollama model\n"
-        "  1. Install Ollama: curl -fsSL https://ollama.ai/install.sh | sh\n"
-        "  2. Start service: ollama serve\n"
-        "  3. Create model: bash model/create_ollama_model.sh\n\n"
-        "Option 3: Use OpenAI API\n"
-        "  1. Get API key from https://platform.openai.com\n"
-        "  2. Add to .env: OPENAI_API_KEY=sk-...\n"
-    )

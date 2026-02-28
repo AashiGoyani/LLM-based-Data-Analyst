@@ -1,219 +1,125 @@
-# LLM-Powered Data Analyst
+# NYC Taxi Data Analyst
 
-A natural language to SQL query system powered by locally-hosted LLM (Ollama + CodeLlama-7B) for analyzing NYC Taxi trip data. Ask questions in plain English and get SQL queries, data tables, and interactive visualizations automatically.
+A natural language to SQL query system for analyzing NYC Taxi trip data. Ask questions in plain English and get instant SQL queries, interactive charts, and data tables — no coding required.
+
+> Powered by **Groq API (free)** · **LLaMA 3.3 70B** · **PostgreSQL** · **FastAPI** · **Next.js**
+
+---
+
+## Screenshots
+
+### Home
+![Home](docs/screenshots/home.png)
+
+### Trips by Payment Type
+![Payment Type](docs/screenshots/query_payment.png)
+
+### Hourly Trip Count — Jan 1, 2016
+![Hourly](docs/screenshots/query_hourly.png)
+
+### Monthly Revenue Trend
+![Monthly Revenue](docs/screenshots/query_monthly_revenue.png)
+
+### Top 10 Highest Revenue Days
+![Top Revenue](docs/screenshots/queryhighest_revenue.png)
+
+---
 
 ## Features
 
-- **Natural Language Queries**: Ask questions like "Count trips by day of week" and get accurate SQL
-- **Local LLM**: Uses Ollama with CodeLlama-7B - no API costs, runs offline
-- **Prompt Engineering**: Custom Modelfile with embedded database schema and few-shot examples
-- **Auto-Visualization**: Generates interactive Plotly charts from query results
-- **Full-Stack Application**: FastAPI backend + Next.js frontend
-- **Real-Time Results**: Execute queries on 40,000+ NYC taxi trip records
+- **Natural Language to SQL** — Type a question, get accurate SQL instantly
+- **Free LLM** — Uses Groq API with LLaMA 3.3 70B (no GPU, no cost)
+- **Auto Visualization** — Automatically picks bar, line, or scatter chart based on data shape
+- **Smart Labels** — Payment types, vendors, and rate codes shown as readable names (e.g. "Credit Card" not "1")
+- **800K Rows** — NYC Taxi trip data from Jan 2015 to Mar 2016
+- **Full Stack** — FastAPI backend + Next.js 14 frontend
 
-## Demo
+---
 
-```
-User Query: "Show average trip distance by payment type"
-
-Generated SQL:
-SELECT payment_type, AVG(trip_distance) as avg_distance
-FROM taxi_trips
-GROUP BY payment_type
-ORDER BY payment_type;
-
-Results:
-payment_type | avg_distance
-1 (Credit)   | 3.2 miles
-2 (Cash)     | 2.8 miles
-...
-
-[Interactive Chart Displayed]
-```
-
-## Architecture
-
-```
-┌─────────────┐     ┌──────────────┐     ┌─────────────┐
-│   Browser   │────▶│  Next.js     │────▶│  FastAPI    │
-│   (3000)    │◀────│  Frontend    │◀────│  (8000)     │
-└─────────────┘     └──────────────┘     └──────┬──────┘
-                                                 │
-                            ┌────────────────────┼──────────────────┐
-                            │                    │                  │
-                            ▼                    ▼                  ▼
-                    ┌──────────────┐    ┌──────────────┐   ┌──────────────┐
-                    │   Ollama     │    │  PostgreSQL  │   │   Plotly     │
-                    │ (11434)      │    │   (5432)     │   │   Charts     │
-                    │ CodeLlama 7B │    │  NYC Taxi    │   │              │
-                    └──────────────┘    └──────────────┘   └──────────────┘
-```
-
-## Technology Stack
-
-### Backend
-- **FastAPI** - Modern Python web framework
-- **SQLAlchemy** - SQL toolkit and ORM
-- **PostgreSQL** - Relational database
-- **Ollama** - Local LLM inference server
-- **Plotly** - Interactive visualization library
+## Skills & Tech Stack
 
 ### Frontend
-- **Next.js 14** - React framework with App Router
-- **TypeScript** - Type-safe JavaScript
-- **Tailwind CSS** - Utility-first CSS framework
-- **React Plotly.js** - React bindings for Plotly
+| Tech | Usage |
+|------|-------|
+| **Next.js 14** | React framework with App Router |
+| **TypeScript** | Type-safe components |
+| **Tailwind CSS** | Utility-first styling |
+| **Plotly / react-plotly.js** | Interactive charts |
 
-### AI/ML
-- **CodeLlama-7B** - Meta's code-specialized LLM
-- **Prompt Engineering** - Custom system prompts with schema injection
-- **Few-Shot Learning** - In-context examples for better SQL generation
+### Backend
+| Tech | Usage |
+|------|-------|
+| **FastAPI** | REST API framework |
+| **SQLAlchemy** | Database ORM |
+| **Pandas** | Data processing & cleaning |
+| **Plotly Express** | Chart generation |
+| **Python-dotenv** | Environment config |
 
-## Prerequisites
+### Database
+| Tech | Usage |
+|------|-------|
+| **PostgreSQL** | Relational database (6.9GB taxi data) |
+| **Docker** | Containerized DB setup |
 
-- **Node.js** 18+ and npm
-- **Python** 3.10+
-- **Docker Desktop** (for PostgreSQL)
-- **Ollama** - [Install from ollama.ai](https://ollama.ai/download)
+### AI / LLM
+| Tech | Usage |
+|------|-------|
+| **Groq API** | Free, fast LLM inference |
+| **LLaMA 3.3 70B** | Natural language to SQL generation |
+| **Prompt Engineering** | Schema injection + SQL rules in system prompt |
+| **Ollama** (optional) | Local LLM fallback |
+
+---
+
+## How It Works
+
+```
+User Question
+     │
+     ▼
+ Next.js Frontend  ──POST /query──▶  FastAPI Backend
+                                          │
+                              ┌───────────┼───────────┐
+                              ▼           ▼           ▼
+                          Groq API   PostgreSQL   Plotly
+                         (SQL gen)   (execute)   (chart)
+                              │           │           │
+                              └───────────┴───────────┘
+                                          │
+                              SQL + Chart + Table
+                                          │
+                                          ▼
+                                    Frontend UI
+```
+
+1. User types a question → frontend sends to `/query`
+2. Backend calls **Groq API** → LLaMA 3.3 generates SQL
+3. SQL executes on **PostgreSQL**
+4. **Plotly** auto-generates chart based on data shape
+5. SQL code, chart, and results table returned to frontend
+
+**LLM Priority:** Groq API → Ollama (local, optional)
+
+---
 
 ## Quick Start
 
-### 1. Clone and Setup
+### Prerequisites
+- Python 3.10+
+- Node.js 18+
+- Docker Desktop
+- Free Groq API key → [console.groq.com](https://console.groq.com)
+
+---
+
+### 1. Clone the repo
 
 ```bash
-cd /path/to/sql
+git clone https://github.com/AashiGoyani/LLM-based-Data-Analyst.git
+cd LLM-based-Data-Analyst
 ```
 
-### 2. Start Ollama Service
-
-```bash
-# Start Ollama (in a new terminal)
-ollama serve
-```
-
-### 3. Create Custom Model
-
-```bash
-# Create sql-analyst model with NYC Taxi schema
-cd model
-bash create_ollama_model.sh
-```
-
-This downloads CodeLlama-7B (~3.8GB) and creates a custom model with:
-- Database schema embedded in system prompt
-- Few-shot examples for common queries
-- Optimized parameters for SQL generation
-
-### 4. Start Database
-
-```bash
-# Start PostgreSQL in Docker
-docker-compose up -d
-
-# Wait for database to be ready
-sleep 5
-```
-
-### 5. Load Sample Data
-
-```bash
-# Activate virtual environment
-source venv/bin/activate
-
-# Load 40,000 taxi trip records (~30 seconds)
-python3 scripts/load_data.py --limit 10000
-```
-
-### 6. Start Backend
-
-```bash
-# In a new terminal
-cd backend
-source ../venv/bin/activate
-python3 -m uvicorn main:app --host 0.0.0.0 --port 8000
-```
-
-Expected output:
-```
-Using Ollama (local model)
-INFO: Uvicorn running on http://0.0.0.0:8000
-```
-
-### 7. Start Frontend
-
-```bash
-# In a new terminal
-cd frontend
-npm install
-npm run dev
-```
-
-### 8. Open Application
-
-Navigate to **http://localhost:3000** and start querying!
-
-## Example Queries
-
-Try these natural language queries:
-
-**Simple Aggregations:**
-- "Count total trips"
-- "Show average trip distance"
-- "What is the total revenue?"
-
-**Group By Queries:**
-- "Count trips by payment type"
-- "Average fare by vendor"
-- "Count trips by day of week"
-
-**Time-Based Analysis:**
-- "Show monthly revenue trend"
-- "Top 10 days with highest revenue"
-- "Average trip distance by hour of day"
-
-**Complex Analytics:**
-- "Show average tip percentage by payment type"
-- "What is the distribution of passenger counts?"
-- "Compare weekday vs weekend trip distances"
-
-## Project Structure
-
-```
-sql/
-├── backend/
-│   ├── llm_provider.py      # Ollama integration
-│   ├── main.py              # FastAPI endpoints
-│   └── requirements.txt     # Python dependencies
-│
-├── frontend/
-│   ├── app/
-│   │   ├── page.tsx         # Main chat interface
-│   │   ├── layout.tsx       # App layout
-│   │   └── globals.css      # Global styles
-│   ├── package.json         # Node dependencies
-│   └── tsconfig.json        # TypeScript config
-│
-├── model/
-│   ├── Modelfile            # Ollama model definition
-│   └── create_ollama_model.sh  # Model setup script
-│
-├── scripts/
-│   └── load_data.py         # Data loading utility
-│
-├── docker/
-│   └── init.sql             # Database schema
-│
-├── archive/                  # NYC Taxi CSV files
-│   └── *.csv                # Trip data (7.4GB)
-│
-├── docker-compose.yml       # PostgreSQL setup
-├── .env                     # Configuration
-└── README.md               # This file
-```
-
-## Configuration
-
-### Environment Variables (.env)
+### 2. Create `.env` file
 
 ```bash
 # Database
@@ -223,178 +129,146 @@ POSTGRES_DB=nyc_taxi
 POSTGRES_HOST=127.0.0.1
 POSTGRES_PORT=5432
 
+# Groq API (free) — https://console.groq.com
+GROQ_API_KEY=gsk_your_key_here
+
 # Backend
 BACKEND_HOST=0.0.0.0
 BACKEND_PORT=8000
-
 ```
 
-### Frontend Environment (.env.local)
+> If port 5432 is already in use, Docker maps to 5433. Set `POSTGRES_PORT=5433`.
+
+### 3. Start the database
 
 ```bash
-NEXT_PUBLIC_API_URL=http://localhost:8000
+docker-compose up -d
 ```
 
-## How It Works
+### 4. Set up Python environment
 
-### 1. Prompt Engineering Approach
-
-Instead of fine-tuning, I use **prompt engineering** with a custom Modelfile:
-
-```
-FROM codellama:7b-instruct
-
-SYSTEM """You are an expert SQL query generator for PostgreSQL.
-
-Database Schema:
-Table: taxi_trips
-Columns:
-- tpep_pickup_datetime: TIMESTAMP
-- total_amount: FLOAT
-- payment_type: INTEGER
-...
-
-Examples:
-Q: Count trips by day of week
-A: SELECT TO_CHAR(tpep_pickup_datetime, 'Day') as day_name,
-   COUNT(*) as total_trips FROM taxi_trips...
-"""
-```
-
-This gives CodeLlama all the context it needs without modifying model weights.
-
-### 2. Request Flow
-
-1. **User types query** → Frontend sends to backend
-2. **Backend calls Ollama** → LLM generates SQL
-3. **Execute SQL** → Run query on PostgreSQL
-4. **Generate visualization** → Create Plotly chart
-5. **Return results** → Display SQL, table, and chart
-
-### 3. SQL Generation (backend/llm_provider.py)
-
-```python
-class OllamaProvider:
-    def generate_sql(self, query: str) -> str:
-        response = requests.post(
-            "http://localhost:11434/api/generate",
-            json={
-                "model": "sql-analyst",
-                "prompt": f"Convert to SQL: {query}",
-                "timeout": 120  # 2 minutes for CPU inference
-            }
-        )
-        sql = response.json()["response"]
-        return self._clean_sql(sql)
-```
-
-## Performance
-
-- **SQL Generation**: 30-90 seconds on CPU (2-5s with GPU)
-- **Query Execution**: <100ms for most queries
-- **Data Loading**: ~3 seconds per 10,000 rows
-- **Model Size**: 3.8GB (CodeLlama-7B)
-- **Memory Usage**: ~8GB RAM during inference
-
-## Database Schema
-
-```sql
-CREATE TABLE taxi_trips (
-    id SERIAL PRIMARY KEY,
-    vendor_id INTEGER,
-    tpep_pickup_datetime TIMESTAMP,
-    tpep_dropoff_datetime TIMESTAMP,
-    passenger_count INTEGER,
-    trip_distance FLOAT,
-    payment_type INTEGER,
-    fare_amount FLOAT,
-    tip_amount FLOAT,
-    total_amount FLOAT,
-    ...
-);
-```
-
-**Indexes:**
-- `idx_pickup_datetime` on `tpep_pickup_datetime`
-- `idx_payment_type` on `payment_type`
-- `idx_vendor` on `vendor_id`
-
-## API Endpoints
-
-### POST /query
-Generate SQL and execute query
-
-**Request:**
-```json
-{
-  "query": "Count trips by day of week",
-  "generate_chart": true
-}
-```
-
-**Response:**
-```json
-{
-  "sql": "SELECT TO_CHAR(...)...",
-  "data": [...],
-  "columns": ["day_name", "total_trips"],
-  "row_count": 7,
-  "chart": "{...plotly json...}",
-  "chart_type": "bar"
-}
-```
-
-### GET /health
-Check system status
-
-**Response:**
-```json
-{
-  "status": "healthy",
-  "database": "connected",
-  "llm_provider": "ollama",
-  "model": "sql-analyst"
-}
-```
-
-## Troubleshooting
-
-### "Cannot connect to Ollama"
 ```bash
-# Start Ollama service
-ollama serve
-
-# Verify model exists
-ollama list | grep sql-analyst
+python3 -m venv venv
+source venv/bin/activate
+pip install -r backend/requirements.txt
 ```
 
-### "Database connection failed"
+### 5. Load data
+
 ```bash
-# Check Docker container
-docker ps | grep nyc_taxi_db
+# Load 200K rows per file
+python scripts/load_data.py --limit 200000
 
-# Restart database
-docker-compose restart
+# Or load everything
+python scripts/load_data.py
 ```
 
-### "Timeout generating SQL"
-- Normal on CPU (30-90 seconds for complex queries)
-- Consider using GPU for faster inference
-- Timeout is set to 120 seconds in `llm_provider.py`
+### 6. Start the backend
 
-### Frontend won't start
+```bash
+cd backend
+source ../venv/bin/activate
+uvicorn main:app --reload
+```
+
+Expected:
+```
+Using Groq API
+INFO: Uvicorn running on http://127.0.0.1:8000
+```
+
+### 7. Start the frontend
+
 ```bash
 cd frontend
-rm -rf node_modules .next
 npm install
 npm run dev
 ```
 
-## Acknowledgments
+### 8. Open the app
 
-- **Meta AI** - CodeLlama-7B model
-- **Ollama** - Local LLM inference framework
-- **NYC TLC** - NYC Taxi trip data
-- **FastAPI** - Modern Python web framework
-- **Vercel** - Next.js framework
+Go to **[http://localhost:3000](http://localhost:3000)**
 
+---
+
+## Example Queries
+
+**Payment & Revenue**
+- Show total trips by payment type
+- What is the total revenue by payment type?
+- Which payment type has the highest average tip?
+- Show average fare amount by vendor
+
+**Time Analysis**
+- What is the monthly revenue trend for 2016?
+- Show hourly trip count on January 1 2016
+- What are the peak hours for taxi rides?
+- Show total trips by day of week
+
+**Rankings**
+- Show the top 10 days with highest total revenue
+- What are the top 10 highest fare trips in January 2016?
+- Which vendor has higher average tips?
+
+---
+
+## Project Structure
+
+```
+├── backend/
+│   ├── main.py              # FastAPI endpoints + chart generation
+│   ├── llm_provider.py      # Groq / Ollama / OpenAI providers
+│   └── requirements.txt
+│
+├── frontend/
+│   └── app/
+│       └── page.tsx         # Chat interface
+│
+├── scripts/
+│   └── load_data.py         # CSV → PostgreSQL loader (chunked)
+│
+├── docker/
+│   └── init.sql             # DB schema + indexes
+│
+├── model/
+│   └── Modelfile            # Ollama model config (optional)
+│
+├── docs/
+│   └── screenshots/         # App screenshots
+│
+├── docker-compose.yml
+
+```
+
+---
+
+## Data
+
+NYC Taxi & Limousine Commission (TLC) trip records — Jan 2015 to Mar 2016
+
+| File | Period | Size |
+|------|--------|------|
+| `nyc_taxi.csv` | Jan 2015 | 1.9 GB |
+| `yellow_tripdata_2016-01.csv` | Jan 2016 | 1.6 GB |
+| `yellow_tripdata_2016-02.csv` | Feb 2016 | 1.7 GB |
+| `yellow_tripdata_2016-03.csv` | Mar 2016 | 1.8 GB |
+
+---
+
+## Troubleshooting
+
+**Database connection failed**
+```bash
+docker start nyc_taxi_db
+# If port conflict → set POSTGRES_PORT=5433 in .env
+```
+
+**Port 8000 already in use**
+```bash
+lsof -ti :8000 | xargs kill -9
+```
+
+**Frontend won't start**
+```bash
+cd frontend && rm -rf node_modules .next && npm install && npm run dev
+```
