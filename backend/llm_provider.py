@@ -103,6 +103,62 @@ class OllamaProvider(LLMProvider):
             return False
 
 
+class GroqProvider(LLMProvider):
+    """Groq API provider (free, fast inference)."""
+
+    def __init__(self, api_key: Optional[str] = None, model: str = "llama-3.3-70b-versatile"):
+        from groq import Groq
+
+        self.api_key = api_key or os.getenv("GROQ_API_KEY")
+        if not self.api_key:
+            raise Exception("Groq API key not configured. Set GROQ_API_KEY in .env")
+
+        self.client = Groq(api_key=self.api_key)
+        self.model = model
+
+    def generate_sql(self, query: str, schema: str) -> str:
+        """Generate SQL using Groq API."""
+        system_prompt = f"""You are an expert SQL query generator for PostgreSQL.
+Convert natural language requests into valid SQL queries.
+
+{schema}
+
+Rules:
+1. Return ONLY the SQL query, no explanations or markdown
+2. Always use proper PostgreSQL syntax
+3. Limit results to 1000 rows unless specifically asked for more
+4. Use appropriate aggregations for summary queries
+5. For time-based trends, use DATE_TRUNC or EXTRACT functions
+6. Always include ORDER BY for meaningful sorting
+7. Use aliases for calculated columns
+8. For revenue, use total_amount column
+9. Handle NULL values with NULLIF when dividing"""
+
+        try:
+            response = self.client.chat.completions.create(
+                model=self.model,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": query}
+                ],
+                temperature=0,
+                max_tokens=500
+            )
+
+            sql = response.choices[0].message.content.strip()
+
+            # Remove markdown code blocks if present
+            if "```sql" in sql:
+                sql = sql.split("```sql")[1].split("```")[0]
+            elif "```" in sql:
+                sql = sql.split("```")[1].split("```")[0]
+
+            return sql.strip()
+
+        except Exception as e:
+            raise Exception(f"Groq API error: {str(e)}")
+
+
 class OpenAIProvider(LLMProvider):
     """OpenAI API provider (fallback option)."""
 
@@ -174,12 +230,22 @@ def get_llm_provider(provider_type: Optional[str] = None) -> LLMProvider:
 
     # If provider explicitly specified
     if provider_type:
-        if provider_type.lower() == "ollama":
+        if provider_type.lower() == "groq":
+            return GroqProvider()
+        elif provider_type.lower() == "ollama":
             return OllamaProvider()
         elif provider_type.lower() == "openai":
             return OpenAIProvider()
 
-    # Auto-detect: Try Ollama first (local, no cost)
+    # Auto-detect: Try Groq first (free, fast, no local resources)
+    try:
+        groq = GroqProvider()
+        print("Using Groq API")
+        return groq
+    except:
+        pass
+
+    # Try Ollama (local model)
     ollama = OllamaProvider()
     if ollama.is_available():
         print("Using Ollama (local model)")
@@ -196,11 +262,14 @@ def get_llm_provider(provider_type: Optional[str] = None) -> LLMProvider:
     # Nothing available
     raise Exception(
         "No LLM provider available.\n\n"
-        "Option 1 (Recommended): Use local Ollama model\n"
+        "Option 1 (Recommended): Use Groq API (free)\n"
+        "  1. Get API key from https://console.groq.com\n"
+        "  2. Add to .env: GROQ_API_KEY=gsk_...\n\n"
+        "Option 2: Use local Ollama model\n"
         "  1. Install Ollama: curl -fsSL https://ollama.ai/install.sh | sh\n"
         "  2. Start service: ollama serve\n"
         "  3. Create model: bash model/create_ollama_model.sh\n\n"
-        "Option 2: Use OpenAI API\n"
+        "Option 3: Use OpenAI API\n"
         "  1. Get API key from https://platform.openai.com\n"
         "  2. Add to .env: OPENAI_API_KEY=sk-...\n"
     )

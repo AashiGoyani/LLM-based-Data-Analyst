@@ -89,6 +89,23 @@ Common queries:
 """
 
 
+# Human-readable labels for categorical columns
+CATEGORY_LABELS = {
+    "payment_type": {
+        1: "Credit Card", 2: "Cash", 3: "No Charge", 4: "Dispute", 5: "Unknown", 6: "Voided"
+    },
+    "vendor_id": {
+        1: "Creative Mobile", 2: "VeriFone"
+    },
+    "rate_code_id": {
+        1: "Standard", 2: "JFK", 3: "Newark", 4: "Nassau/Westchester", 5: "Negotiated", 6: "Group"
+    },
+    "store_and_fwd_flag": {
+        "Y": "Store & Forward", "N": "Direct"
+    },
+}
+
+
 # Request/Response models
 class QueryRequest(BaseModel):
     query: str
@@ -145,62 +162,78 @@ def execute_sql(sql: str) -> pd.DataFrame:
 
 
 def generate_chart(df: pd.DataFrame, query: str) -> tuple[str, str]:
-    """Generate appropriate chart based on data and query."""
+    """Generate appropriate chart based on data shape — no keyword matching."""
 
     if df.empty or len(df.columns) < 2:
         return None, None
 
-    # Determine chart type based on data and query
-    query_lower = query.lower()
-
-    # Get column info
     cols = df.columns.tolist()
     numeric_cols = df.select_dtypes(include=['number']).columns.tolist()
+    non_numeric_cols = [c for c in cols if c not in numeric_cols]
+    datetime_cols = df.select_dtypes(include=['datetime', 'datetimetz']).columns.tolist()
+
+    # Pick X: prefer datetime > non-numeric > first numeric that isn't the only column
+    if datetime_cols:
+        x_col = datetime_cols[0]
+    elif non_numeric_cols:
+        x_col = non_numeric_cols[0]
+    else:
+        x_col = cols[0]
+
+    # Apply human-readable labels if X column has a known mapping
+    if x_col in CATEGORY_LABELS:
+        df[x_col] = df[x_col].map(CATEGORY_LABELS[x_col]).fillna(df[x_col].astype(str))
+    elif x_col in numeric_cols and df[x_col].nunique() <= 20:
+        # If X is a numeric category (low cardinality), convert to string for discrete axis
+        df[x_col] = df[x_col].astype(str)
+
+    # Pick Y: first numeric column that isn't x and isn't an id/index column
+    y_candidates = [c for c in numeric_cols if c != x_col and not c.lower().endswith('id') and c.lower() != 'index']
+    if not y_candidates:
+        return None, None
+    y_col = y_candidates[0]
 
     try:
-        # Time series / trend analysis
-        if any(word in query_lower for word in ['trend', 'over time', 'monthly', 'daily', 'yearly', 'by month', 'by day']):
-            if len(numeric_cols) >= 1:
-                x_col = cols[0]
-                y_col = numeric_cols[0] if numeric_cols else cols[1]
-                fig = px.line(df, x=x_col, y=y_col, title=f"{y_col} Trend")
+        # Datetime x
+        if x_col in datetime_cols or df[x_col].astype(str).str.match(r'\d{4}-\d{2}').any():
+            time_series_names = ['month', 'day', 'week', 'year', 'date', 'hour', 'time', 'period']
+            is_time_series = any(w in x_col.lower() for w in time_series_names)
+
+            # Check if dates are in chronological order (trend) or ranked order (top-N)
+            try:
+                dates = pd.to_datetime(df[x_col])
+                is_chronological = dates.is_monotonic_increasing
+            except Exception:
+                is_chronological = False
+
+            if is_time_series and is_chronological:
+                fig = px.line(df, x=x_col, y=y_col, title=f"{y_col} over time", markers=True,
+                              color_discrete_sequence=["#60a5fa"])
+                chart_type = "line"
+            elif len(df) <= 15:
+                fig = px.bar(df, x=x_col, y=y_col, title=f"{y_col} by {x_col}",
+                             color=y_col, color_continuous_scale="Blues")
+                chart_type = "bar"
+            elif len(df) <= 50:
+                fig = px.scatter(df, x=x_col, y=y_col, title=f"{y_col} over time",
+                                 color=y_col, color_continuous_scale="Viridis")
+                chart_type = "scatter"
+            else:
+                fig = px.line(df, x=x_col, y=y_col, title=f"{y_col} over time",
+                              color_discrete_sequence=["#34d399"])
                 chart_type = "line"
 
-        # Distribution / comparison
-        elif any(word in query_lower for word in ['distribution', 'by', 'per', 'breakdown', 'compare']):
-            if len(numeric_cols) >= 1:
-                x_col = cols[0]
-                y_col = numeric_cols[0] if numeric_cols else cols[1]
+        # Few categories (≤ 30 rows) → bar chart
+        elif len(df) <= 30:
+            fig = px.bar(df, x=x_col, y=y_col, title=f"{y_col} by {x_col}",
+                         color=x_col, color_discrete_sequence=px.colors.qualitative.Bold)
+            chart_type = "bar"
 
-                if len(df) <= 10:
-                    fig = px.bar(df, x=x_col, y=y_col, title=f"{y_col} by {x_col}")
-                    chart_type = "bar"
-                else:
-                    fig = px.line(df, x=x_col, y=y_col, title=f"{y_col} by {x_col}")
-                    chart_type = "line"
-
-        # Top N analysis
-        elif any(word in query_lower for word in ['top', 'highest', 'most', 'best']):
-            if len(numeric_cols) >= 1:
-                x_col = cols[0]
-                y_col = numeric_cols[0]
-                fig = px.bar(df, x=x_col, y=y_col, title=f"Top {y_col}")
-                chart_type = "bar"
-
-        # Default: bar chart for small datasets, line for larger
+        # Many rows → line chart
         else:
-            if len(numeric_cols) >= 1:
-                x_col = cols[0]
-                y_col = numeric_cols[0]
-
-                if len(df) <= 20:
-                    fig = px.bar(df, x=x_col, y=y_col)
-                    chart_type = "bar"
-                else:
-                    fig = px.line(df, x=x_col, y=y_col)
-                    chart_type = "line"
-            else:
-                return None, None
+            fig = px.line(df, x=x_col, y=y_col, title=f"{y_col} by {x_col}",
+                          color_discrete_sequence=["#a78bfa"])
+            chart_type = "line"
 
         # Update layout
         fig.update_layout(
@@ -299,9 +332,12 @@ async def process_query(request: QueryRequest):
         if pd.api.types.is_datetime64_any_dtype(df[col]):
             df[col] = df[col].astype(str)
 
+    # Use to_json then parse back to handle NaN/Inf safely
+    data = json.loads(df.to_json(orient="records", default_handler=str))
+
     return QueryResponse(
         sql=sql,
-        data=df.to_dict(orient="records"),
+        data=data,
         columns=df.columns.tolist(),
         row_count=len(df),
         chart=chart_json,
